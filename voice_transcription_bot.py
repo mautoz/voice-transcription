@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Replace YOUR_BOT_TOKEN with your Telegram bot token
-BOT = telegram.Bot(token=os.getenv('TELEGRAM_TOKEN'))
+bot = telegram.Bot(token=os.getenv('TELEGRAM_TOKEN'))
 
 def transcribe_audio(update, context):
     """
@@ -27,7 +27,7 @@ def transcribe_audio(update, context):
     """
     with TemporaryDirectory() as temp_path:
         # Get voice file from Telegram message
-        file = context.BOT.getFile(update.message.voice.file_id)
+        file = context.bot.getFile(update.message.voice.file_id)
         file_name = file.file_path.split("/")[-1]
         file_path = os.path.join(temp_path, file_name)
         file.download(file_path)
@@ -68,4 +68,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    
