@@ -33,7 +33,11 @@ def transcribe_audio(update, context):
             text = r.recognize_google(audio, language="pt-BR")
             update.message.reply_text(text)
         except sr.UnknownValueError:
-            update.message.reply_text("I couldn't hear you! Can you repeat?")
+            update.message.reply_text("It's not Portuguese! Let's try English!")
+            try:
+                text = text = r.recognize_google(audio, language="en-US")
+            except sr.UnknownValueError:
+                update.message.reply_text("I am fluent in over six million forms of communication, but I couldn't understand you! Can you repeat?")
         except sr.RequestError as err:
             update.message.reply_text(f"An error occurred: {str(err)}")
 
