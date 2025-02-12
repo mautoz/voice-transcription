@@ -1,0 +1,13 @@
+APScheduler==3.6.3
+cachetools==4.2.2
+certifi==2025.1.31
+ffmpeg==1.4
+pydub==0.25.1
+python-dotenv==1.0.1
+python-telegram-bot==13.7
+pytz==2025.1
+six==1.17.0
+SpeechRecognition==3.14.1
+tornado==6.4.2
+typing_extensions==4.12.2
+tzlocal==5.2

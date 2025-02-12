@@ -23,37 +23,43 @@ bot = telegram.Bot(token=os.getenv('TELEGRAM_TOKEN'))
 def transcribe_audio(update, context):
     """
     The voice message is downloaded in a temporary folder
-    and the speech recognition do the transcription!
+    and speech recognition transcribes it in chunks.
     """
     with TemporaryDirectory() as temp_path:
-        # Get voice file from Telegram message
         file = context.bot.getFile(update.message.voice.file_id)
         file_name = file.file_path.split("/")[-1]
         file_path = os.path.join(temp_path, file_name)
         file.download(file_path)
         
-        # Check the audio format
+        # Convert audio if necessary
         file_format = file_name.split(".")[-1]
-        
         if file_format not in ["wav", "aiff", "aif", "aifc", "flac"]:
-            sound = AudioSegment.from_file(file_path, format='ogg')            
+            sound = AudioSegment.from_file(file_path, format='ogg')
             file_path = os.path.join(temp_path, file_name.split(".")[0] + ".wav")
             sound.export(file_path, format="wav")
 
         r = sr.Recognizer()
         with sr.AudioFile(file_path) as source:
-            audio = r.record(source)
+            # Sometime the script breaks wwith larger audios
+            audio_duration = source.DURATION  # Total duration in seconds
+            chunk_size = 30  # Process in 30-second chunks
+            offset = 0
+            full_text = ""
 
-        try:
-            text = r.recognize_google(audio, language="pt-BR")
-            update.message.reply_text(text)
-        except sr.UnknownValueError:
-            update.message.reply_text(
-                "I am fluent in over six million forms of communication, "
-                "but I couldn't understand you! Can you repeat?"
-            )
-        except sr.RequestError as err:
-            update.message.reply_text(f"An error occurred: {str(err)}")
+            while offset < audio_duration:
+                audio = r.record(source, duration=chunk_size)
+                try:
+                    text = r.recognize_google(audio, language="pt-BR")
+                    full_text += text + " "
+                except sr.UnknownValueError:
+                    full_text += "[inaudible] "
+                except sr.RequestError as err:
+                    update.message.reply_text(f"An error occurred: {str(err)}")
+                    return
+            
+                offset += chunk_size  # Move to the next chunk
+
+        update.message.reply_text(full_text.strip())
 
 def main():
     """
