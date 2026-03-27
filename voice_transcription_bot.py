@@ -17,49 +17,63 @@ from telegram.ext import Updater, MessageHandler, Filters
 from dotenv import load_dotenv
 load_dotenv()
 
-# Replace YOUR_BOT_TOKEN with your Telegram bot token
+TELEGRAM_MAX_LENGTH = 4096
 bot = telegram.Bot(token=os.getenv('TELEGRAM_TOKEN'))
+
 
 def transcribe_audio(update, context):
     """
     The voice message is downloaded in a temporary folder
     and speech recognition transcribes it in chunks.
     """
-    with TemporaryDirectory() as temp_path:
-        file = context.bot.getFile(update.message.voice.file_id)
-        file_name = file.file_path.split("/")[-1]
-        file_path = os.path.join(temp_path, file_name)
-        file.download(file_path)
-        
-        # Convert audio if necessary
-        file_format = file_name.split(".")[-1]
-        if file_format not in ["wav", "aiff", "aif", "aifc", "flac"]:
-            sound = AudioSegment.from_file(file_path, format='ogg')
-            file_path = os.path.join(temp_path, file_name.split(".")[0] + ".wav")
-            sound.export(file_path, format="wav")
+    update.message.reply_text("⏳ Transcrevendo áudio...")
 
-        r = sr.Recognizer()
-        with sr.AudioFile(file_path) as source:
-            # Sometime the script breaks wwith larger audios
-            audio_duration = source.DURATION  # Total duration in seconds
-            chunk_size = 30  # Process in 30-second chunks
-            offset = 0
-            full_text = ""
+    try:
+        with TemporaryDirectory() as temp_path:
+            file = context.bot.getFile(update.message.voice.file_id)
+            file_name = file.file_path.split("/")[-1]
+            file_path = os.path.join(temp_path, file_name)
+            file.download(file_path)
 
-            while offset < audio_duration:
-                audio = r.record(source, duration=chunk_size)
-                try:
-                    text = r.recognize_google(audio, language="pt-BR")
-                    full_text += text + " "
-                except sr.UnknownValueError:
-                    full_text += "[inaudible] "
-                except sr.RequestError as err:
-                    update.message.reply_text(f"An error occurred: {str(err)}")
-                    return
-            
-                offset += chunk_size  # Move to the next chunk
+            # Convert audio if necessary
+            file_format = file_name.split(".")[-1].lower()
+            if file_format not in ["wav", "aiff", "aif", "aifc", "flac"]:
+                sound = AudioSegment.from_file(file_path, format=file_format)
+                file_path = os.path.join(temp_path, file_name.split(".")[0] + ".wav")
+                sound.export(file_path, format="wav")
 
-        update.message.reply_text(full_text.strip())
+            r = sr.Recognizer()
+            with sr.AudioFile(file_path) as source:
+                audio_duration = source.DURATION
+                chunk_size = 30
+                offset = 0
+                full_text = ""
+
+                while offset < audio_duration:
+                    audio = r.record(source, duration=chunk_size)
+                    try:
+                        text = r.recognize_google(audio, language="pt-BR")
+                        full_text += text + " "
+                    except sr.UnknownValueError:
+                        full_text += "[inaudível] "
+                    except sr.RequestError as err:
+                        update.message.reply_text(f"❌ Erro na API de reconhecimento: {str(err)}")
+                        return
+
+                    offset += chunk_size
+
+        full_text = full_text.strip()
+        if not full_text:
+            update.message.reply_text("❌ Não foi possível transcrever o áudio.")
+            return
+
+        # Split if text exceeds Telegram's message limit
+        for i in range(0, len(full_text), TELEGRAM_MAX_LENGTH):
+            update.message.reply_text(full_text[i:i + TELEGRAM_MAX_LENGTH])
+
+    except Exception as err:
+        update.message.reply_text(f"❌ Erro ao processar o áudio: {str(err)}")
+
 
 def main():
     """
@@ -71,6 +85,7 @@ def main():
     updater.dispatcher.add_handler(message_handler)
     updater.start_polling()
     updater.idle()
+
 
 if __name__ == '__main__':
     main()
