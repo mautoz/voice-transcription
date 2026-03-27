@@ -37,6 +37,9 @@ def transcribe_audio(update, context):
 
             # Convert audio if necessary
             file_format = file_name.split(".")[-1].lower()
+            # oga is ogg audio — older ffmpeg doesn't recognize 'oga'
+            if file_format == "oga":
+                file_format = "ogg"
             if file_format not in ["wav", "aiff", "aif", "aifc", "flac"]:
                 sound = AudioSegment.from_file(file_path, format=file_format)
                 file_path = os.path.join(temp_path, file_name.split(".")[0] + ".wav")
